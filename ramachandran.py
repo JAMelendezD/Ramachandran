@@ -23,23 +23,14 @@ parser.add_argument('last_res', type=int, help='main selection')
 parser.add_argument('out', type=str, help='output file')
 args = parser.parse_args()
 
-def names(selection,num_atoms):
-	'''
-	Function to get the residue names and store them in lists for a given selection
-	'''
-	sel_names = []
-	for i in range(num_atoms):
-		sel_names.append(selection.atoms[i].resname)
-	return(sel_names)
-
 def animation(min_frame,max_frame,phi_traj,psi_traj,step,start):
 	num_res = np.shape(phi_traj)[1]
 	cmap = plt.cm.rainbow(np.linspace(0, 1,num_res))
 	for frame in tqdm(range(min_frame,max_frame)):
 		fig = plt.figure(figsize=(6,6))
 		for i in range(num_res):
-			plt.scatter(phi_traj[:frame+1,i],psi_traj[:frame+1,i],alpha=0.5,color=cmap[i],s=10)
-			plt.plot(phi_traj[:frame+1,i],psi_traj[:frame+1,i],alpha=0.1,color=cmap[i])
+			plt.plot(phi_traj[:frame+1,i],psi_traj[:frame+1,i],alpha=0.2,color=cmap[i],zorder=-1)
+			plt.scatter(phi_traj[:frame+1,i],psi_traj[:frame+1,i],alpha=0.5,color=cmap[i],s=10,zorder=3)
 			plt.text(100,190,f'{(frame*step+start):8.3f}ns')
 		plt.xlim(-180,180)
 		plt.ylim(-180,180)
@@ -50,12 +41,7 @@ def animation(min_frame,max_frame,phi_traj,psi_traj,step,start):
 		plt.savefig(f'{args.out}_{frame:05d}.png',bbox_inches="tight")
 		plt.close()
 
-def run():
-	if args.top.endswith('.tpr'):
-		pass
-	else:
-		raise ValueError("Extension for topology must be .tpr")
-	
+def run():	
 	print(f'MDA version: {mda.__version__}')
 
 	u = mda.Universe(args.top,args.traj) 
@@ -90,7 +76,6 @@ def run():
 			max_frames.append((i+1)*divide_conquer)
 
 	pool.starmap(partial_animate,zip(min_frames,max_frames))
-	#animation(R_phi.results.angles,R_psi.results.angles,dt*args.step,args.first*dt)
-
+	
 if __name__ == '__main__':
 	run()
