@@ -16,7 +16,7 @@ convert -delay 5 -dispose Background *.png anim.gif
 </p>
 
 <p align="center">
-  <img width="400" src="images/ind1.gif">
-  <img width="400" src="images/ind2.gif">
-  <img width="400" src="images/ind3.gif">
+  <img width="300" src="images/ind1.gif">
+  <img width="300" src="images/ind2.gif">
+  <img width="300" src="images/ind3.gif">
 </p>
