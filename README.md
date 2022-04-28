@@ -12,7 +12,7 @@ convert -delay 5 -dispose Background *.png anim.gif
 ```
 
 <p align="center">
-  <img width="300" src="images/many.gif">
+  <img width="500" src="images/many.gif">
 </p>
 
 <p align="center">
