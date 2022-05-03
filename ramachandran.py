@@ -37,15 +37,46 @@ def pre_process(frames,num_res,array_):
 						array_[frame+1:frame+2,i] = 180
 	return(array_)
 
-def animate0(min_frame,max_frame,phi_traj,psi_traj,phi_traj_p,psi_traj_p,step,start):
+def fix_boundary(point,cutoff):
+	new_point = [point[0],0]
+	extra = [0,point[1]]
+	delta = abs(point[1]-point[0])
+	if delta > cutoff:
+		if point[0] > 0:
+			new_point[1] = 180
+			extra[0] = -180
+		else:
+			new_point[1] = -180
+			extra[0] = 180
+		return(new_point,extra)
+	else:
+		return(None,None)
+
+def animate0(min_frame,max_frame,phi_traj,psi_traj,step,start,cutoff):
 	num_res = np.shape(phi_traj)[1]
 	cmap = plt.cm.rainbow(np.linspace(0, 1,num_res))
+	fig = plt.figure(figsize=(6,6))
 	for frame in tqdm(range(min_frame,max_frame),colour='green',desc='Frames'):
-		fig = plt.figure(figsize=(6,6))
 		for i in range(num_res):
-			plt.plot(phi_traj_p[:frame+1,i],psi_traj_p[:frame+1,i],alpha=0.4,color=cmap[i],zorder=-1)
-			plt.scatter(phi_traj[:frame+1,i],psi_traj[:frame+1,i],alpha=0.4,color=cmap[i],s=10,zorder=3)
-			plt.text(100,190,f'{(frame*step+start):8.3f}ns')
+			point_x = [phi_traj[frame:frame+1,i][0],phi_traj[frame+1:frame+2,i][0]]
+			point_y = [psi_traj[frame:frame+1,i][0],psi_traj[frame+1:frame+2,i][0]]
+
+			new_point_x,extra_x = fix_boundary(point_x,cutoff)
+			new_point_y,extra_y = fix_boundary(point_y,cutoff)
+
+			if new_point_x == None and new_point_y == None:
+				plt.plot(point_x,point_y,alpha=0.4,color=cmap[i],zorder=-1)
+			elif new_point_x == None and new_point_y != None:
+				plt.plot(point_x,new_point_y,alpha=0.4,color=cmap[i],zorder=-1)
+				plt.plot(point_x,extra_y,alpha=0.4,color=cmap[i],zorder=-1)
+			elif new_point_x != None and new_point_y == None:
+				plt.plot(new_point_x,point_y,alpha=0.4,color=cmap[i],zorder=-1)
+				plt.plot(extra_x,point_y,alpha=0.4,color=cmap[i],zorder=-1)
+			else:
+				plt.plot(new_point_x,new_point_y,alpha=0.4,color=cmap[i],zorder=-1)
+				plt.plot(extra_x,extra_y,alpha=0.4,color=cmap[i],zorder=-1)			
+			plt.scatter(point_x,point_y,alpha=0.4,color=cmap[i],s=10,zorder=3)
+			plt.title(f'{(frame*step+start):8.3f}ns')
 		plt.xlim(-180,180)
 		plt.ylim(-180,180)
 		plt.xticks(np.arange(-180,180+60,60))
@@ -53,16 +84,16 @@ def animate0(min_frame,max_frame,phi_traj,psi_traj,phi_traj_p,psi_traj_p,step,st
 		plt.xlabel(r'$\phi$ ($^\circ$)')
 		plt.ylabel(r'$\psi$ ($^\circ$)')
 		plt.savefig(f'{args.out}_{frame:05d}.png',bbox_inches="tight")
-		plt.close()
+		plt.title('')
 
-def animate1(min_frame,max_frame,phi_traj,psi_traj,step,start):
+def animate1(min_frame,max_frame,phi_traj,psi_traj,phi_traj_p,psi_traj_p,step,start):
 	num_res = np.shape(phi_traj)[1]
 	cmap = plt.cm.rainbow(np.linspace(0, 1,num_res))
-	for frame in range(min_frame,max_frame):
+	for frame in tqdm(range(min_frame,max_frame),colour='green',desc='Frames'):
 		fig = plt.figure(figsize=(6,6))
 		for i in range(num_res):
-			plt.plot(phi_traj[:frame+1,i],psi_traj[:frame+1,i],alpha=0.2,color=cmap[i],zorder=-1)
-			plt.scatter(phi_traj[:frame+1,i],psi_traj[:frame+1,i],alpha=0.5,color=cmap[i],s=10,zorder=3)
+			plt.plot(phi_traj_p[:frame+1,i],psi_traj_p[:frame+1,i],alpha=0.4,color=cmap[i],zorder=-1)
+			plt.scatter(phi_traj[:frame+1,i],psi_traj[:frame+1,i],alpha=0.4,color=cmap[i],s=10,zorder=3)
 			plt.text(100,190,f'{(frame*step+start):8.3f}ns')
 		plt.xlim(-180,180)
 		plt.ylim(-180,180)
@@ -99,26 +130,26 @@ def run():
 	cores = multiprocessing.cpu_count()
 	print(f'Will use all available cores to generate images:\t{cores:8d}')
 	divide_conquer = int(np.ceil(frames/cores))
-
+		
 	if args.mode == 0:
+		partial_animate=partial(animate0, phi_traj=R_phi,psi_traj=R_psi,step=dt*args.step,start=args.first*dt,cutoff=280)
+		partial_animate(0,frames)
+	elif args.mode == 1:
 		R_phi_p = pre_process(frames,num_res,np.copy(R_phi))
 		R_psi_p = pre_process(frames,num_res,np.copy(R_psi))
-		partial_animate=partial(animate0, phi_traj=R_phi,psi_traj=R_psi,phi_traj_p=R_phi_p,psi_traj_p=R_psi_p,step=dt*args.step,start=args.first*dt)
-	elif args.mode == 1:
-		partial_animate=partial(animate1, phi_traj=R_phi,psi_traj=R_psi,step=dt*args.step,start=args.first*dt)
+		partial_animate=partial(animate1, phi_traj=R_phi,psi_traj=R_psi,phi_traj_p=R_phi_p,psi_traj_p=R_psi_p,step=dt*args.step,start=args.first*dt)
+		pool = multiprocessing.Pool(cores)
 
-	pool = multiprocessing.Pool(cores)
+		min_frames = []
+		max_frames = []
+		for i in range(cores):
+			min_frames.append(i*divide_conquer)
+			if i == cores-1:
+				max_frames.append(frames)
+			else:
+				max_frames.append((i+1)*divide_conquer)
 
-	min_frames = []
-	max_frames = []
-	for i in range(cores):
-		min_frames.append(i*divide_conquer)
-		if i == cores-1:
-			max_frames.append(frames)
-		else:
-			max_frames.append((i+1)*divide_conquer)
-
-	pool.starmap(partial_animate,zip(min_frames,max_frames))
+		pool.starmap(partial_animate,zip(min_frames,max_frames))
 
 if __name__ == '__main__':
 	run()
